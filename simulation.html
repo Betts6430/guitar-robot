@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guitar robot concepts v0.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --paper:#f2f5f3; --panel:#fbfcfb; --ink:#1b2420; --muted:#56635d; --rule:#d3dcd7;
+  --mat:#2f6556; --signal:#f2c230; --signal-ink:#2a2305;
+  --chip:#e7eee9; --chip-on:#1b2420; --chip-on-ink:#f2f5f3;
+  --scene-bg:#d9e2dd; --ground:#3b6f60; --grid-a:#8cb3a3; --grid-b:#5d8d7d;
+  --hud-bg:rgba(251,252,251,.9); --lbl-bg:rgba(251,252,251,.94); --focus:#1d63c9;
+  --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--ink); background:var(--paper); font-family:var(--sans);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#101815; --panel:#131c18; --ink:#e3eae6; --muted:#9aa8a1; --rule:#25322c;
+    --mat:#2c6152; --signal:#f5c842; --signal-ink:#261f04;
+    --chip:#1b2622; --chip-on:#e3eae6; --chip-on-ink:#101815;
+    --scene-bg:#0f1714; --ground:#1d3c33; --grid-a:#467464; --grid-b:#2b4d42;
+    --hud-bg:rgba(19,28,24,.88); --lbl-bg:rgba(19,28,24,.92); --focus:#7db3ff;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101815; --panel:#131c18; --ink:#e3eae6; --muted:#9aa8a1; --rule:#25322c;
+  --mat:#2c6152; --signal:#f5c842; --signal-ink:#261f04;
+  --chip:#1b2622; --chip-on:#e3eae6; --chip-on-ink:#101815;
+  --scene-bg:#0f1714; --ground:#1d3c33; --grid-a:#467464; --grid-b:#2b4d42;
+  --hud-bg:rgba(19,28,24,.88); --lbl-bg:rgba(19,28,24,.92); --focus:#7db3ff;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+#app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px}
+
+#stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--scene-bg)}
+#c{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;display:flex;align-items:center;gap:6px;white-space:nowrap;font:500 12px/1.2 var(--sans);color:var(--ink);will-change:transform}
+.lbl i{width:8px;height:8px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 2px var(--ink);flex:none}
+.lbl span{background:var(--lbl-bg);padding:3px 7px;border-radius:3px;border:1px solid var(--rule)}
+.hint{position:absolute;left:14px;bottom:12px;font:400 13px/1.3 var(--sans);color:var(--muted);pointer-events:none}
+.fail{position:absolute;inset:0;margin:0;display:grid;place-items:center;padding:32px;text-align:center;font:500 16px/1.5 var(--sans);color:var(--ink)}
+
+.hud{position:absolute;top:14px;left:14px;background:var(--hud-bg);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);min-width:204px}
+.hud-design{font:600 13px/1.2 var(--cond);color:var(--muted);margin-bottom:4px}
+.hud-name{font:700 30px/1 var(--cond);letter-spacing:-.01em}
+.hud-tab{margin-top:5px;font:500 14px/1.2 var(--sans);color:var(--muted);font-variant-numeric:tabular-nums;word-spacing:.15em}
+.hud-line{font:400 13px/1.4 var(--sans);color:var(--muted);font-variant-numeric:tabular-nums}
+.hud-line.gap{color:var(--ink);font-weight:500}
+.fb{display:grid;grid-template-columns:30px repeat(6,20px);grid-template-rows:16px repeat(4,20px);margin:10px 0 8px}
+.fl{font:500 11px/20px var(--sans);color:var(--muted);text-align:right;padding-right:7px;font-variant-numeric:tabular-nums}
+.fm{font:600 11px/16px var(--sans);text-align:center;color:var(--muted)}
+.fc{position:relative;border-bottom:1.5px solid var(--muted)}
+.fc.first{border-top:1.5px solid var(--muted)}
+.fc::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;margin-left:-.5px;background:var(--muted);opacity:.75}
+.fc.on::after{content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 1.5px var(--ink)}
+.fc.br.on::after{left:0;right:0;width:auto;height:8px;margin:-4px 0 0 0;border-radius:0;box-shadow:0 1.5px 0 0 var(--ink),0 -1.5px 0 0 var(--ink)}
+
+#panel{background:var(--panel);border-left:1px solid var(--rule);overflow-y:auto;padding:24px 22px 32px;display:flex;flex-direction:column;gap:24px}
+h1{margin:0;font:700 28px/1.05 var(--cond);letter-spacing:-.01em}
+.lede{margin:8px 0 0;font:400 15px/1.5 var(--sans);color:var(--muted);max-width:40ch}
+h2{margin:0 0 9px;font:600 16px/1.2 var(--cond);letter-spacing:.005em}
+.sub{margin:-4px 0 10px;font:400 13.5px/1.45 var(--sans);color:var(--muted)}
+.sub.after{margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{appearance:none;border:1px solid var(--rule);background:var(--chip);color:var(--ink);font:500 15px/1 var(--sans);padding:10px 14px;border-radius:4px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--mat);border-color:var(--mat);color:#fff;min-width:9.5em}
+.btn.primary:hover{filter:brightness(1.08)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.seg button{appearance:none;border:0;border-right:1px solid var(--rule);background:transparent;color:var(--ink);font:500 14px/1 var(--sans);padding:10px 11px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink)}
+.seg.design{display:flex}
+.seg.design button{flex:1;font:600 17px/1 var(--cond);padding:12px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;border:1px solid var(--rule);background:transparent;color:var(--ink);font:600 15px/1 var(--cond);padding:8px 11px;border-radius:4px;cursor:pointer;min-width:42px}
+.chip:hover{background:var(--chip)}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);border-color:var(--chip-on)}
+button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.script{position:relative;font:400 12.5px/1.6 var(--mono);background:var(--chip);border-radius:4px;max-height:210px;overflow:auto;padding:8px 0}
+.script div{padding:0 12px;white-space:pre;color:var(--muted)}
+.script div.now{background:var(--signal);color:var(--signal-ink)}
+.toggles{display:flex;gap:18px;flex-wrap:wrap}
+.toggles label{display:flex;align-items:center;gap:8px;font:500 15px/1 var(--sans);cursor:pointer}
+.toggles input{width:17px;height:17px;accent-color:var(--mat);margin:0}
+details summary{cursor:pointer;font:600 16px/1.2 var(--cond)}
+.notes p{margin:10px 0 0;font:400 14.5px/1.5 var(--sans);max-width:42ch}
+.notes b{font-weight:600}
+
+@media (max-width:780px){
+  #app{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  #panel{border-left:0;border-top:1px solid var(--rule);max-height:46vh;padding:16px 16px 24px;gap:20px}
+  h1{font-size:23px}
+  .hud{top:8px;left:8px;padding:9px 10px;min-width:0;transform:scale(.84);transform-origin:top left}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="c" aria-label="3D model of the guitar robot. Drag to orbit, scroll or pinch to zoom."></canvas>
+    <div id="labels"></div>
+    <div class="hud" id="hud">
+      <div class="hud-design" id="hudDesign">Finger grid</div>
+      <div class="hud-name" id="hudName">Resting</div>
+      <div class="hud-tab" id="hudTab">Hands clear of the strings</div>
+      <div class="fb" id="fb" aria-hidden="true"></div>
+      <div class="hud-line gap" id="hudGap">Chord gap not measured yet</div>
+      <div class="hud-line" id="hudPos">Carriage home at the nut</div>
+      <div class="hud-line" id="hudPick">Pick lifted</div>
+    </div>
+    <div class="hint">Drag to orbit, scroll to zoom, right-drag or shift-drag to pan</div>
+  </main>
+
+  <aside id="panel">
+    <header>
+      <h1>Guitar robot concepts, v0.2</h1>
+      <p class="lede">Two ways to build the chord hand, on the same guitar with the same pick hand. Both play the same song, so you can compare them directly. Real scale on a 1&nbsp;cm cutting-mat grid; yellow parts are actuators and glow when energized.</p>
+    </header>
+
+    <section>
+      <h2>Chord hand</h2>
+      <div class="seg design" id="design" role="group" aria-label="Chord-hand design">
+        <button type="button" data-d="A" aria-pressed="true">Finger grid</button>
+        <button type="button" data-d="B" aria-pressed="false">Sliding fingers</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Demo song</h2>
+      <div class="row">
+        <button class="btn primary" id="play" type="button">Pause</button>
+        <button class="btn" id="restart" type="button">Start over</button>
+        <div class="seg" id="speed" role="group" aria-label="Playback speed">
+          <button type="button" data-s="0.25" aria-pressed="false">¼×</button>
+          <button type="button" data-s="0.5" aria-pressed="false">½×</button>
+          <button type="button" data-s="1" aria-pressed="true">1×</button>
+        </div>
+      </div>
+      <p class="sub after">Chord gap, in the readout, is how long the previous chord gets cut short while the hand changes shape. Shorter sounds smoother.</p>
+    </section>
+
+    <section>
+      <h2>Camera</h2>
+      <div class="chips" id="views">
+        <button class="chip" type="button" data-view="overview" aria-pressed="true">Overview</button>
+        <button class="chip" type="button" data-view="chord" aria-pressed="false">Chord hand</button>
+        <button class="chip" type="button" data-view="pick" aria-pressed="false">Pick hand</button>
+        <button class="chip" type="button" data-view="side" aria-pressed="false">Side</button>
+        <button class="chip" type="button" data-view="top" aria-pressed="false">Top</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Play one chord</h2>
+      <p class="sub">The robot forms the shape, then strums once.</p>
+      <div class="chips" id="chords"></div>
+    </section>
+
+    <section>
+      <h2>Robot script</h2>
+      <p class="sub">The song in the event format the hardware reads. The highlighted line is running now.</p>
+      <div class="script" id="script"></div>
+    </section>
+
+    <section class="toggles">
+      <label><input type="checkbox" id="snd" checked> Sound</label>
+      <label><input type="checkbox" id="lbl"> Part labels</label>
+    </section>
+
+    <details class="notes" id="notes" open>
+      <summary>Design notes</summary>
+      <div data-notes="A">
+        <p><b>Finger grid.</b> A barre bar plus a 6 × 3 grid of fingers on one carriage. One slide reaches every open chord and every E-shape and A-shape barre chord.</p>
+        <p><b>Rows follow the frets.</b> Fret spacing shrinks about 6% per fret, so the rows are linked (drawn as a scissor linkage) and close up toward the body.</p>
+        <p><b>Staggered solenoids.</b> Each solenoid is wider than the 7&nbsp;mm string spacing at the nut, so neighbours sit front and back.</p>
+        <p><b>Position.</b> One stepper on a lead screw, homed at the nut. The fret sensor flashes each time it passes a fret, confirming position.</p>
+        <p><b>Fast within a position.</b> Open-chord changes are just solenoids switching. Only barre-position changes move the carriage, and then every finger has to lift.</p>
+      </div>
+      <div data-notes="B" hidden>
+        <p><b>One finger per string.</b> Each finger rides its own slot, cut to follow its string. No fret window: any chord shape, any stretch, anywhere on the neck. A barre is just six fingers on the same fret.</p>
+        <p><b>Six motors.</b> Each finger is pulled by its own stepper through a cable loop. Six motors don't fit on the neck, so they sit in a bank over the headstock.</p>
+        <p><b>Thin carriages.</b> Strings are 7&nbsp;mm apart at the nut, so each carriage and its press actuator must be under about 6&nbsp;mm wide. This is the hardest constraint; the model draws them at 4&nbsp;mm.</p>
+        <p><b>Fingers move only when they must.</b> Notes shared between chords stay pressed and keep ringing, and lifted fingers slide into place early, while the previous chord is still sounding.</p>
+        <p><b>Slides, not hammer-ons.</b> A finger that moves while pressed plays a slide, which the grid can't do. With one finger per string, there's no second finger to hammer on with.</p>
+      </div>
+    </details>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+'use strict';
+
+/*LOGIC-START*/
+// ---------- guitar geometry, in centimetres ----------
+const L = 64.8;
+const FB_END = 47.2;
+const d = f => L * (1 - Math.pow(2, -f / 12));
+const fretSpace = f => d(f) - d(f - 1);
+const pressX = f => d(f) - 0.45 * fretSpace(f);
+const pitchAt = x => (3.5 + 1.7 * x / L) / 5;
+const zStr = (s, x) => pitchAt(x) * (s - 2.5);
+const yStr = x => 0.28 + 0.30 * x / L;
+const fbHalf = x => 2.15 + 0.65 * Math.min(Math.max(x / FB_END, 0), 1);
+const FRET_TOP = 0.12;
+const PICK_X = 56;
+const STR_R = [0.062, 0.055, 0.048, 0.040, 0.033, 0.027];
+const OPEN_HZ = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
+const STRING_NAMES = ['low E', 'A', 'D', 'G', 'B', 'high e'];
+const STAG = s => (s % 2 === 0 ? -0.42 : 0.42);
+const ZFIX = [0, 1, 2, 3, 4, 5].map(s => zStr(s, 14));
+const TIP_UP = 1.45, TIP_H = 0.32, ROD_LEN = 5.2;
+const tipDown = s => FRET_TOP + 2 * STR_R[s] + 0.01;
+const BARRE_UP = 1.6, BARRE_DOWN = FRET_TOP + 0.13, PAD_H = 0.12, BAR_H = 0.35, BAR_ROD = 5.0;
+const PICK_Y0 = yStr(PICK_X) - 0.26, PICK_Y1 = yStr(PICK_X) + 1.05;
+const PICK_STR_Z = [0, 1, 2, 3, 4, 5].map(s => zStr(s, PICK_X));
+const PICK_HALF = 0.45 * pitchAt(PICK_X);
+const PARK_Z = PICK_STR_Z[5] + 2.2;
+const REL_T = 0.08, PRESS_T = 0.08;               // finger lift / press time, both designs
+const SLIDE_V = 50, SLIDE_A = 600;                // sliding-finger carriage: 50 cm/s, 6 m/s²
+const slideTime = D => (D < SLIDE_V * SLIDE_V / SLIDE_A ? 2 * Math.sqrt(D / SLIDE_A) : D / SLIDE_V + SLIDE_V / SLIDE_A);
+const gridMoveTime = frets => 0.14 + 0.06 * frets; // finger-grid carriage on a lead screw
+
+const CHORDS = {
+  G:   { frets: [3, 2, 0, 0, 0, 3],   short: 'G',   name: 'G major',  chip: 'G' },
+  C:   { frets: [-1, 3, 2, 0, 1, 0],  short: 'C',   name: 'C major',  chip: 'C' },
+  D:   { frets: [-1, -1, 0, 2, 3, 2], short: 'D',   name: 'D major',  chip: 'D' },
+  Em:  { frets: [0, 2, 2, 0, 0, 0],   short: 'Em',  name: 'E minor',  chip: 'Em' },
+  Am:  { frets: [-1, 0, 2, 2, 1, 0],  short: 'Am',  name: 'A minor',  chip: 'Am' },
+  E:   { frets: [0, 2, 2, 1, 0, 0],   short: 'E',   name: 'E major',  chip: 'E' },
+  A:   { frets: [-1, 0, 2, 2, 2, 0],  short: 'A',   name: 'A major',  chip: 'A' },
+  F:   { frets: [1, 3, 3, 2, 1, 1],   barre: 1, short: 'F',   name: 'F major',  chip: 'F' },
+  Bm:  { frets: [-1, 2, 4, 4, 3, 2],  barre: 2, short: 'Bm',  name: 'B minor',  chip: 'Bm' },
+  G3:  { frets: [3, 5, 5, 4, 3, 3],   barre: 3, short: 'G',   name: 'G major',  chip: 'G at 3' },
+  Cs4: { frets: [-1, 4, 6, 6, 5, 4],  barre: 4, short: 'C#m', name: 'C♯ minor', chip: 'C♯m at 4' },
+  A5:  { frets: [5, 7, 7, 6, 5, 5],   barre: 5, short: 'A',   name: 'A major',  chip: 'A at 5' },
+  D5:  { frets: [-1, 5, 7, 7, 7, 5],  barre: 5, short: 'D',   name: 'D major',  chip: 'D at 5' },
+};
+const CHORD_ORDER = ['G', 'C', 'D', 'Em', 'Am', 'E', 'A', 'F', 'Bm', 'G3', 'Cs4', 'A5', 'D5'];
+
+// finger-grid index: (row - 1) * 6 + string for rows 1..3; index 18 is the barre bar
+function shapeOf(key) {
+  const c = CHORDS[key], b = c.barre || 0, f = new Array(19).fill(0);
+  c.frets.forEach((fr, s) => {
+    if (fr > b) { const k = fr - b; if (k >= 1 && k <= 3) f[(k - 1) * 6 + s] = 1; }
+  });
+  if (b > 0) f[18] = 1;
+  return { b, f };
+}
+const tabStr = frets => frets.map(f => (f < 0 ? 'x' : String(f))).join(' ');
+function lineFor(e) {
+  const bt = 'beat ' + (e.beat + 1).toFixed(1).padStart(4, ' ');
+  if (e.type === 'shape') { const c = CHORDS[e.chord]; return bt + '  shape ' + c.short.padEnd(4, ' ') + tabStr(c.frets); }
+  if (e.type === 'strum') return bt + '  strum ' + e.dir;
+  return bt + '  pick  ' + STRING_NAMES[e.string];
+}
+
+function demoSong() {
+  const ev = []; let bar = 0;
+  const pat = [[0, 'down'], [1, 'down'], [1.5, 'up'], [2.5, 'up'], [3, 'down']];
+  for (const ch of ['G', 'C', 'D', 'Em', 'F', 'G3', 'A5', 'Bm']) {
+    const b0 = bar * 4;
+    ev.push({ beat: b0, type: 'shape', chord: ch });
+    for (const [o, dir] of pat) ev.push({ beat: b0 + o, type: 'strum', chord: ch, dir });
+    bar++;
+  }
+  for (const ch of ['Am', 'C']) {
+    const b0 = bar * 4;
+    ev.push({ beat: b0, type: 'shape', chord: ch });
+    [1, 2, 3, 4, 5, 4, 3, 2].forEach((s, i) => ev.push({ beat: b0 + i * 0.5, type: 'pick', chord: ch, string: s }));
+    bar++;
+  }
+  const b0 = bar * 4;
+  ev.push({ beat: b0, type: 'shape', chord: 'E' });
+  ev.push({ beat: b0, type: 'strum', chord: 'E', dir: 'down' });
+  bar++;
+  return { events: ev, beats: bar * 4, tempo: 80 };
+}
+function oneChordSong(key) {
+  return { events: [{ beat: 0, type: 'shape', chord: key }, { beat: 0, type: 'strum', chord: key, dir: 'down' }], beats: 3, tempo: 80 };
+}
+const beatClock = song => { const bd = 60 / song.tempo; return beat => 0.9 + beat * bd; };
+
+function push(tr, kf) {
+  const last = tr[tr.length - 1];
+  if (kf[0] <= last[0]) kf[0] = last[0] + 1e-3;
+  tr.push(kf);
+}
+
+// pick keyframes are [time, z, lift, linear]; lift 0 = tip in the strings, 1 = clear of them
+function planPick(tr, T0, zA, zB) {
+  const last = tr[tr.length - 1], zc = last[1], lc = last[2];
+  const lo = Math.min(zc, zA), hi = Math.max(zc, zA);
+  const crossing = PICK_STR_Z.some(z => z > lo + 0.05 && z < hi - 0.05);
+  const dist = Math.abs(zA - zc);
+  if (dist < 1e-3 && lc < 0.01) {
+    // already in position
+  } else if (!crossing) {
+    const md = Math.max(0.05, dist / 45);
+    push(tr, [T0 - 0.01 - md, zc, lc, 0]);
+    push(tr, [T0 - 0.01, zA, 0, 0]);
+  } else {
+    const t3 = T0 - 0.01, t2 = t3 - 0.06, t1 = t2 - Math.max(0.06, dist / 45), t0 = t1 - 0.06;
+    if (lc < 0.99) { push(tr, [t0, zc, lc, 0]); push(tr, [t1, zc, 1, 0]); }
+    else push(tr, [t1, zc, 1, 0]);
+    push(tr, [t2, zA, 1, 0]);
+    push(tr, [t3, zA, 0, 0]);
+  }
+  push(tr, [T0, zA, 0, 0]);
+  push(tr, [T0 + Math.max(0.05, Math.abs(zB - zA) / 60), zB, 0, 1]);
+}
+function pickEvent(tl, e, t, ps) {
+  const c = CHORDS[e.chord];
+  let zA, zB;
+  if (e.type === 'strum') {
+    const played = [];
+    c.frets.forEach((f, s) => { if (f >= 0) played.push(s); });
+    const zl = PICK_STR_Z[played[0]] - PICK_HALF, zh = PICK_STR_Z[played[played.length - 1]] + PICK_HALF;
+    if (e.dir === 'down') { zA = zl; zB = zh; } else { zA = zh; zB = zl; }
+    ps.lastPicked = -1;
+  } else {
+    const s = e.string, zs = PICK_STR_Z[s];
+    const down = ps.lastPicked < 0 || s >= ps.lastPicked;
+    zA = down ? zs - PICK_HALF : zs + PICK_HALF;
+    zB = down ? zs + PICK_HALF : zs - PICK_HALF;
+    ps.lastPicked = s;
+  }
+  planPick(tl.pick, t, zA, zB);
+}
+function finishPick(tl, tEnd, keepHeld) {
+  const lp = tl.pick[tl.pick.length - 1];
+  const tLift = keepHeld ? lp[0] + 0.35 : Math.max(lp[0] + 0.35, tEnd - 0.6);
+  push(tl.pick, [tLift, lp[1], lp[2], 0]);
+  push(tl.pick, [tLift + 0.12, lp[1], 1, 0]);
+  push(tl.pick, [tLift + 0.55, PARK_Z, 1, 0]);
+  tl.end = Math.max(tEnd, tLift + 0.55) + 0.35;
+}
+
+// ----- design A: finger grid on one carriage -----
+function buildTimelineA(song, init, opts) {
+  opts = opts || {};
+  const T = beatClock(song);
+  const tl = { design: 'A', carriage: [[0, init.b]], fingers: init.f.map(v => [[0, v]]), pick: [[0, init.pz, init.pl, 0]],
+    chordAt: [[0, init.chord || null]], changes: [[0, -1]], lines: [], end: 0 };
+  let cur = { b: init.b, f: init.f.slice() };
+  const ps = { lastPicked: -1 };
+  for (const e of song.events) {
+    const t = T(e.beat);
+    tl.lines.push({ t, text: lineFor(e) });
+    if (e.type !== 'shape') { pickEvent(tl, e, t, ps); continue; }
+    const nx = shapeOf(e.chord);
+    const db = Math.abs(nx.b - cur.b), moving = db > 1e-6;
+    const tReady = t - 0.03, tPress = tReady - PRESS_T;
+    const tMove = tPress - (moving ? gridMoveTime(db) : 0);
+    const tRel = tMove - REL_T;
+    let rel = false, prs = false;
+    for (let i = 0; i < 19; i++) {
+      const vp = cur.f[i], vn = nx.f[i], tr = tl.fingers[i];
+      if (moving) {
+        if (vp > 0) { push(tr, [tRel, vp]); push(tr, [tMove, 0]); rel = true; }
+        if (vn > 0) { push(tr, [tPress, 0]); push(tr, [tReady, vn]); prs = true; }
+      } else if (vp > vn) { push(tr, [tRel, vp]); push(tr, [tMove, vn]); rel = true; }
+      else if (vn > vp) { push(tr, [tPress, vp]); push(tr, [tReady, vn]); prs = true; }
+    }
+    if (moving) { push(tl.carriage, [tMove, cur.b]); push(tl.carriage, [tPress, nx.b]); }
+    const cut = rel ? tReady - tRel : (prs ? PRESS_T : 0);
+    push(tl.chordAt, [tReady - Math.max(cut, PRESS_T), e.chord]);
+    push(tl.changes, [tReady - cut, cut]);
+    cur = nx;
+  }
+  const tEnd = T(song.beats);
+  if (!opts.keepHeld) {
+    for (let i = 0; i < 19; i++) if (cur.f[i] > 0) { push(tl.fingers[i], [tEnd - 0.25, cur.f[i]]); push(tl.fingers[i], [tEnd, 0]); }
+    push(tl.chordAt, [tEnd - 0.25, null]);
+  }
+  finishPick(tl, tEnd, opts.keepHeld);
+  return tl;
+}
+
+// ----- design B: one sliding finger per string -----
+function buildTimelineB(song, init, opts) {
+  opts = opts || {};
+  const T = beatClock(song);
+  const tl = { design: 'B', pos: init.p.map(v => [[0, v]]), press: init.v.map(v => [[0, v]]), pick: [[0, init.pz, init.pl, 0]],
+    chordAt: [[0, init.chord || null]], changes: [[0, -1]], lines: [], end: 0 };
+  const cp = init.p.slice(), cv = init.v.slice();
+  const tFree = init.v.map(v => (v > 0 ? Infinity : 0));
+  const ps = { lastPicked: -1 };
+  for (const e of song.events) {
+    const t = T(e.beat);
+    tl.lines.push({ t, text: lineFor(e) });
+    if (e.type !== 'shape') { pickEvent(tl, e, t, ps); continue; }
+    const c = CHORDS[e.chord], tReady = t - 0.03, tPress = tReady - PRESS_T;
+    let cut = 0;
+    for (let s = 0; s < 6; s++) {
+      const fn = c.frets[s], vp = cv[s], pp = cp[s], P = tl.pos[s], Q = tl.press[s];
+      if (fn > 0) {
+        if (vp > 0.99 && Math.abs(pp - fn) < 1e-6) continue;          // same note: stay down
+        const D = Math.abs(pressX(fn) - pressX(pp)), mt = D > 1e-6 ? slideTime(D) : 0;
+        let tMove;
+        if (vp > 0) {                                                  // must lift, slide, press
+          tMove = tPress - mt;
+          push(Q, [tMove - REL_T, vp]); push(Q, [tMove, 0]);
+          cut = Math.max(cut, tReady - (tMove - REL_T));
+        } else {                                                       // already lifted: slide early
+          tMove = Math.min(tPress - mt, Math.max(tFree[s] + 0.05, tPress - mt - 0.5));
+          cut = Math.max(cut, PRESS_T);
+        }
+        if (mt > 0) { push(P, [tMove, pp]); push(P, [tMove + mt, fn]); }
+        push(Q, [tPress, 0]); push(Q, [tReady, 1]);
+        cp[s] = fn; cv[s] = 1; tFree[s] = Infinity;
+      } else if (vp > 0) {
+        push(Q, [tReady - REL_T, vp]); push(Q, [tReady, 0]);
+        cv[s] = 0; tFree[s] = tReady; cut = Math.max(cut, REL_T);
+      }
+    }
+    push(tl.chordAt, [tReady - Math.max(cut, PRESS_T), e.chord]);
+    push(tl.changes, [tReady - cut, cut]);
+  }
+  const tEnd = T(song.beats);
+  if (!opts.keepHeld) {
+    for (let s = 0; s < 6; s++) if (cv[s] > 0) { push(tl.press[s], [tEnd - 0.25, cv[s]]); push(tl.press[s], [tEnd, 0]); }
+    push(tl.chordAt, [tEnd - 0.25, null]);
+  }
+  finishPick(tl, tEnd, opts.keepHeld);
+  return tl;
+}
+const buildTimeline = (design, song, init, opts) => (design === 'B' ? buildTimelineB(song, init, opts) : buildTimelineA(song, init, opts));
+
+function ev1(tr, t) {
+  if (t <= tr[0][0]) return tr[0][1];
+  for (let i = 1; i < tr.length; i++) {
+    if (t < tr[i][0]) {
+      const a = tr[i - 1], b = tr[i];
+      let u = (t - a[0]) / (b[0] - a[0]); u = u * u * (3 - 2 * u);
+      return a[1] + (b[1] - a[1]) * u;
+    }
+  }
+  return tr[tr.length - 1][1];
+}
+function evPick(tr, t) {
+  if (t <= tr[0][0]) return [tr[0][1], tr[0][2]];
+  for (let i = 1; i < tr.length; i++) {
+    if (t < tr[i][0]) {
+      const a = tr[i - 1], b = tr[i];
+      let u = (t - a[0]) / (b[0] - a[0]);
+      if (!b[3]) u = u * u * (3 - 2 * u);
+      return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    }
+  }
+  const l = tr[tr.length - 1];
+  return [l[1], l[2]];
+}
+function evStep(tr, t) {
+  let v = tr[0][1];
+  for (const k of tr) { if (k[0] <= t) v = k[1]; else break; }
+  return v;
+}
+function sampleState(tl, t) {
+  const p = evPick(tl.pick, t);
+  const st = { pz: p[0], pl: p[1], chord: evStep(tl.chordAt, t), gap: evStep(tl.changes, t) };
+  if (tl.design === 'B') { st.p = tl.pos.map(tr => ev1(tr, t)); st.v = tl.press.map(tr => ev1(tr, t)); }
+  else { st.b = ev1(tl.carriage, t); st.f = tl.fingers.map(tr => ev1(tr, t)); }
+  return st;
+}
+const REST = {
+  A: { b: 0, f: new Array(19).fill(0), pz: PARK_Z, pl: 1, chord: null },
+  B: { p: [0, 0, 0, 0, 0, 0], v: [0, 0, 0, 0, 0, 0], pz: PARK_Z, pl: 1, chord: null },
+};
+const SONG = demoSong();
+/*LOGIC-END*/
+
+// ---------- page setup ----------
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('c');
+const labelsEl = document.getElementById('labels');
+const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+function fail(msg) {
+  const p = document.createElement('p'); p.className = 'fail'; p.textContent = msg; stage.appendChild(p);
+  document.getElementById('hud').hidden = true;
+}
+if (typeof THREE === 'undefined') { fail('The 3D library did not load. Check your connection, then reload the page.'); return; }
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
+catch (err) { fail('This browser could not start WebGL, which the 3D model needs. Try another browser or turn on hardware acceleration.'); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 1000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x5d6d66, 0.78));
+const sun = new THREE.DirectionalLight(0xffffff, 0.82);
+sun.position.set(18, 95, 60);
+sun.target.position.set(30, 0, 0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -72, right: 72, top: 72, bottom: -72, near: 20, far: 240 });
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.04;
+scene.add(sun, sun.target);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.22);
+fillLight.position.set(-70, 40, -60);
+scene.add(fillLight);
+
+// ---------- helpers ----------
+const M = (color, rough, metal, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough === undefined ? 0.55 : rough, metalness: metal || 0 }, extra || {}));
+const mat = {
+  body: M('#e4cfa6', 0.42, 0), neck: M('#dcb47c', 0.5, 0), board: M('#3b2619', 0.75, 0),
+  nut: M('#efe8d8', 0.4, 0), fret: M('#d4d6d8', 0.3, 0.35), inlay: M('#efe8d8', 0.35, 0),
+  pickup: M('#161718', 0.5, 0), pole: M('#bfc3c6', 0.3, 0.35), chrome: M('#c9ccd0', 0.28, 0.35),
+  alu: M('#b7bec5', 0.42, 0.25), aluDark: M('#48525a', 0.5, 0.2), rail: M('#dde1e4', 0.25, 0.35),
+  rubber: M('#1c1d1e', 0.9, 0), motor: M('#2a2e33', 0.5, 0.2), signal: M('#f2c230', 0.45, 0.05),
+  belt: M('#1f2123', 0.8, 0), sensor: M('#23272b', 0.4, 0.1), pick: M('#d6452b', 0.35, 0),
+};
+const solMat = () => M('#c9a233', 0.5, 0.05, { emissive: new THREE.Color('#ffd23a'), emissiveIntensity: 0 });
+
+const UP = new THREE.Vector3(0, 1, 0);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const CYL = new THREE.CylinderGeometry(1, 1, 1, 14);
+const CYL6 = new THREE.CylinderGeometry(1, 1, 1, 6);
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+function box(w, h, dp, material, x, y, z, parent, noShadow) {
+  const m = new THREE.Mesh(BOX, material);
+  m.scale.set(w, h, dp); m.position.set(x, y, z);
+  m.castShadow = !noShadow; m.receiveShadow = true;
+  (parent || scene).add(m); return m;
+}
+function cylY(r, h, material, x, y, z, parent, lowPoly) {
+  const m = new THREE.Mesh(lowPoly ? CYL6 : CYL, material);
+  m.scale.set(r, h, r); m.position.set(x, y, z);
+  m.castShadow = true; m.receiveShadow = true;
+  (parent || scene).add(m); return m;
+}
+function cylX(r, x0, x1, material, y, z, parent) {
+  const m = cylY(r, x1 - x0, material, (x0 + x1) / 2, y, z, parent);
+  m.rotation.z = Math.PI / 2; return m;
+}
+const _dv = new THREE.Vector3();
+function between(m, a, b, rx, rz) {
+  _dv.subVectors(b, a);
+  const len = _dv.length();
+  m.position.copy(a).addScaledVector(_dv, 0.5);
+  m.scale.set(rx, Math.max(len, 1e-4), rz);
+  if (len > 1e-6) m.quaternion.setFromUnitVectors(UP, _dv.multiplyScalar(1 / len));
+}
+function strand(material, a, b, r, parent) {
+  const m = new THREE.Mesh(CYL6, material); (parent || scene).add(m);
+  if (a && b) between(m, a, b, r, r);
+  return m;
+}
+function poly(pts) {
+  const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  s.closePath(); return s;
+}
+function slab(shape, depth, bevel, material, topY, noShadow, parent) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 40, steps: 1 });
+  g.rotateX(Math.PI / 2);
+  g.translate(0, topY - bevel, 0);
+  const m = new THREE.Mesh(g, material);
+  m.castShadow = !noShadow; m.receiveShadow = true;
+  (parent || scene).add(m); return m;
+}
+
+// ---------- cutting mat ----------
+const matMat = M('#3b6f60', 0.95, 0);
+box(130, 0.3, 80, matMat, 33, -6.15, 0, null, true);
+function gridGeo(step, x0, x1, z0, z1, y) {
+  const pts = [];
+  for (let x = x0; x <= x1 + 1e-6; x += step) pts.push(x, y, z0, x, y, z1);
+  for (let z = z0; z <= z1 + 1e-6; z += step) pts.push(x0, y, z, x1, y, z);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  return g;
+}
+const gridFine = new THREE.LineSegments(gridGeo(1, -32, 98, -40, 40, -5.99), new THREE.LineBasicMaterial({ color: '#5d8d7d', transparent: true, opacity: 0.45, depthWrite: false }));
+const gridCoarse = new THREE.LineSegments(gridGeo(10, -32, 98, -40, 40, -5.985), new THREE.LineBasicMaterial({ color: '#8cb3a3', transparent: true, opacity: 0.9, depthWrite: false }));
+scene.add(gridFine, gridCoarse);
+
+// ---------- guitar ----------
+const bodyShape = new THREE.Shape();
+bodyShape.moveTo(46, 3.0);
+bodyShape.bezierCurveTo(44, 6, 40, 9, 41.5, 12.2);
+bodyShape.bezierCurveTo(43, 15, 50, 14.5, 55, 13.2);
+bodyShape.bezierCurveTo(60, 12, 66, 18.5, 74, 17);
+bodyShape.bezierCurveTo(82, 15.5, 83, 6, 82, 0);
+bodyShape.bezierCurveTo(81, -6, 82, -15.5, 74, -17.5);
+bodyShape.bezierCurveTo(66, -19, 60, -13, 56, -13.8);
+bodyShape.bezierCurveTo(51, -14.5, 44, -19, 38.5, -16);
+bodyShape.bezierCurveTo(35, -14, 38, -10.5, 41, -8);
+bodyShape.bezierCurveTo(43.5, -6, 45, -4, 46, -3.0);
+bodyShape.lineTo(46, 3.0);
+slab(bodyShape, 3.8, 0.3, mat.body, -0.9);
+slab(poly([[-0.3, -1.85], [48.5, -2.5], [48.5, 2.5], [-0.3, 1.85]]), 1.9, 0.3, mat.neck, -0.6);
+slab(poly([[-0.3, -2.15], [FB_END, -fbHalf(FB_END)], [FB_END, fbHalf(FB_END)], [-0.3, 2.15]]), 0.6, 0, mat.board, 0);
+const hsShape = new THREE.Shape();
+hsShape.moveTo(-0.3, -1.85); hsShape.lineTo(-4, -2.3); hsShape.lineTo(-17.5, -3.6);
+hsShape.quadraticCurveTo(-19.8, -3.6, -19.8, -2.2); hsShape.lineTo(-19.8, 2.2);
+hsShape.quadraticCurveTo(-19.8, 3.6, -17.5, 3.6); hsShape.lineTo(-4, 2.3); hsShape.lineTo(-0.3, 1.85);
+hsShape.closePath();
+slab(hsShape, 1.1, 0.2, mat.neck, -0.35);
+const hsHalf = x => (x > -4 ? 1.85 + 0.45 * ((-x - 0.3) / 3.7) : 2.3 + 1.3 * Math.min(1, (-x - 4) / 13.5)) + 0.2;
+
+box(0.3, 0.32, 4.3, mat.nut, -0.15, 0.16, 0);
+for (let n = 1; n <= 24; n++) {
+  const x = d(n); if (x > FB_END - 0.25) break;
+  box(0.16, FRET_TOP, 2 * fbHalf(x), mat.fret, x, FRET_TOP / 2, 0, null, true);
+}
+for (const n of [3, 5, 7, 9, 12, 15, 17, 19, 21]) {
+  const x = (d(n - 1) + d(n)) / 2; if (x > FB_END) continue;
+  for (const z of (n === 12 ? [-1.1, 1.1] : [0])) cylY(0.3, 0.02, mat.inlay, x, 0.01, z);
+}
+for (const px of [49.5, 61.5]) {
+  box(1.8, 0.9, 7.2, mat.pickup, px, -0.45, 0);
+  for (let s = 0; s < 6; s++) for (const o of [-0.4, 0.4]) cylY(0.12, 0.05, mat.pole, px + o, 0.02, zStr(s, px));
+}
+box(2.4, 1.2, 7.0, mat.chrome, L + 0.9, -0.3, 0);
+for (let s = 0; s < 6; s++) box(0.9, 0.22, 0.6, mat.chrome, L, 0.41, zStr(s, L), null, true);
+cylY(0.9, 0.9, mat.aluDark, 70, -0.45, 10.5);
+cylY(0.9, 0.9, mat.aluDark, 74.5, -0.45, 8.3);
+
+const tunerX = [-15.5, -11.5, -7.5, -7.5, -11.5, -15.5];
+const strMats = [], segA = [], segB = [], nutP = [], brP = [];
+for (let s = 0; s < 6; s++) {
+  const x = tunerX[s], sg = s < 3 ? -1 : 1;
+  cylY(0.28, 0.9, mat.chrome, x, 0.1, sg * 1.75);
+  box(0.8, 0.4, 1.1, mat.chrome, x, -1.0, sg * (hsHalf(x) + 0.75));
+  const baseCol = s < 3 ? '#d3c9ae' : '#dcdfe2';
+  strand(M(baseCol, 0.3, 0.4), V(-0.3, yStr(0), zStr(s, 0)), V(x, 0.4, sg * 1.5), STR_R[s]);
+  const sm = M(baseCol, 0.3, 0.4, { emissive: new THREE.Color('#ffd23a'), emissiveIntensity: 0 });
+  strMats.push(sm);
+  segA.push(strand(sm)); segB.push(strand(sm));
+  nutP.push(V(0, yStr(0), zStr(s, 0)));
+  brP.push(V(L, yStr(L), zStr(s, L)));
+}
+
+// ---------- shared: neck clamps ----------
+function neckClamp(x, halfW, topY, botY) {
+  box(1.2, 0.6, 8.4, mat.aluDark, x, botY - 0.3, 0);
+  const h = 5.4 - (botY - 0.6);
+  for (const sg of [-1, 1]) {
+    box(1.2, h, 0.6, mat.aluDark, x, (5.4 + botY - 0.6) / 2, sg * 3.9);
+    const padW = 3.6 - halfW;
+    box(1.0, topY - botY - 0.15, padW, mat.rubber, x, (topY + botY) / 2, sg * (halfW + padW / 2));
+  }
+  box(1.2, 0.5, 10.6, mat.aluDark, x, 5.15, -0.6);
+}
+neckClamp(-3.6, hsHalf(-3.6), -0.35, -1.85);
+neckClamp(41.8, 2.75, 0, -3.1);
+
+// ---------- design A: finger grid ----------
+const gA = new THREE.Group(); scene.add(gA);
+for (const sg of [-1, 1]) cylX(0.28, -4.2, 42.4, mat.rail, 4.0, sg * 3.9, gA);
+for (const x of [-3.6, 41.8]) box(1.2, 1.2, 1.2, mat.aluDark, x, 4.3, -5.1, gA);
+const screw = new THREE.Group(); screw.position.set(19.1, 4.0, -5.1); gA.add(screw);
+const screwMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 46.6, 6), M('#c9ccd0', 0.35, 0.35, { flatShading: true }));
+screwMesh.rotation.z = Math.PI / 2; screwMesh.castShadow = true; screw.add(screwMesh);
+box(3.0, 3.0, 3.0, mat.motor, -5.7, 4.0, -5.1, gA);
+cylX(0.95, -7.9, -7.2, mat.aluDark, 4.0, -5.1, gA);
+box(0.7, 0.5, 0.7, mat.sensor, -2.6, 4.55, 3.9, gA);
+
+const rows = [], fingers = [], scissor = [];
+for (let k = 0; k < 4; k++) {
+  const g = new THREE.Group(); gA.add(g);
+  box(0.8, 0.55, 8.7, mat.alu, 0, 4.725, 0, g);
+  for (const sg of [-1, 1]) box(0.95, 0.9, 0.9, mat.aluDark, 0, 4.0, sg * 3.9, g);
+  rows.push(g);
+}
+const barre = {
+  acts: [-1, 1].map(sg => cylY(0.45, 1.8, solMat(), 0, 5.9, sg * 3.1, rows[0])),
+  rods: [-1, 1].map(sg => cylY(0.1, BAR_ROD, mat.chrome, 0, 0, sg * 3.1, rows[0])),
+  bar: box(0.62, BAR_H, 6.7, mat.alu, 0, 0, 0, rows[0]),
+  pad: box(0.62, PAD_H, 5.9, mat.rubber, 0, 0, 0, rows[0]),
+};
+for (let k = 1; k <= 3; k++) for (let s = 0; s < 6; s++) {
+  const x = STAG(s), z = ZFIX[s], m = solMat();
+  fingers.push({
+    k, s, idx: (k - 1) * 6 + s, m,
+    sol: cylY(0.4, 1.5, m, x, 5.75, z, rows[k]),
+    rod: cylY(0.085, ROD_LEN, mat.chrome, x, 0, z, rows[k], true),
+    tip: cylY(0.26, TIP_H, mat.rubber, x, 0, z, rows[k]),
+  });
+}
+box(0.8, 0.55, 1.1, mat.alu, 0, 4.725, -4.9, rows[1]);
+box(1.1, 0.95, 1.1, mat.aluDark, 0, 4.0, -5.1, rows[1]);
+box(0.45, 2.25, 0.45, mat.sensor, 0, 3.325, -2.75, rows[1]);
+const lensMat = M('#26303a', 0.3, 0.1, { emissive: new THREE.Color('#5fe0ff'), emissiveIntensity: 0 });
+cylY(0.15, 0.08, lensMat, 0, 2.16, -2.75, rows[1]);
+for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(BOX, mat.alu); m.castShadow = true; gA.add(m); scissor.push(m); }
+
+// ---------- design B: one sliding finger per string ----------
+const gB = new THREE.Group(); scene.add(gB); gB.visible = false;
+const LANE_X0 = -2.45, LANE_X1 = 40.9, LANE_Y = 4.75, ROD_B = 4.63, TIP_RB = 0.2;
+slab(poly([[-3.0, -2.95], [41.2, -3.35], [41.2, 3.35], [-3.0, 2.95]]), 0.15, 0,
+  M('#b7bec5', 0.4, 0.2, { transparent: true, opacity: 0.32, depthWrite: false }), 4.4, true, gB);
+box(0.6, 1.0, 6.2, mat.aluDark, -2.7, 4.9, 0, gB);
+box(0.6, 1.0, 7.0, mat.aluDark, 40.9, 4.9, 0, gB);
+box(5.3, 0.4, 22.6, mat.aluDark, -5.65, 5.6, 0, gB);                  // motor bank base
+const lanes = [];
+for (let s = 0; s < 6; s++) {
+  const hz = zStr(s, LANE_X0), tz = zStr(s, LANE_X1), zm = (s - 2.5) * 3.6;
+  const slot = new THREE.Mesh(BOX, mat.aluDark); gB.add(slot);
+  between(slot, V(-3.0, 4.415, zStr(s, -3.0)), V(41.2, 4.415, zStr(s, 41.2)), 0.02, 0.12);
+  for (const [x, z] of [[LANE_X0, hz], [LANE_X1, tz]]) { const idl = cylY(0.15, 0.14, mat.chrome, x, LANE_Y, z, gB); idl.rotation.x = Math.PI / 2; }
+  box(3.0, 3.0, 3.0, mat.motor, -6.5, 7.3, zm, gB);
+  cylX(0.32, -5.0, -4.65, mat.chrome, 6.4, zm, gB);
+  strand(mat.belt, V(LANE_X0, LANE_Y, hz), V(LANE_X0, 6.3, hz), 0.035, gB);
+  strand(mat.belt, V(LANE_X0, 6.3, hz), V(-4.7, 6.4, zm), 0.035, gB);
+  const m = solMat();
+  lanes.push({
+    s, hz, tz, m,
+    car: box(1.1, 0.5, 0.42, mat.alu, 0, 4.65, 0, gB),
+    act: box(1.4, 1.1, 0.42, m, 0, 5.45, 0, gB),
+    rod: cylY(0.065, ROD_B, mat.chrome, 0, 0, 0, gB, true),
+    tip: cylY(TIP_RB, TIP_H, mat.rubber, 0, 0, 0, gB),
+    cabF: strand(mat.belt, null, null, 0, gB),
+    cabR: strand(mat.belt, null, null, 0, gB),
+  });
+}
+
+// ---------- pick hand (shared) ----------
+const bpts = bodyShape.getSpacedPoints(800);
+let zMax = -1e9, zMin = 1e9;
+for (const p of bpts) if (Math.abs(p.x - PICK_X) < 1.0) { zMax = Math.max(zMax, p.y); zMin = Math.min(zMin, p.y); }
+if (zMax < -1e8) { zMax = 13.2; zMin = -13.8; }
+const postP = zMax + 0.3 + 0.9 + 0.4, postN = zMin - 0.3 - 0.9 - 0.4;
+for (const [pz, sg] of [[postP, 1], [postN, -1]]) {
+  box(2.4, 13.9, 0.8, mat.aluDark, PICK_X, 1.05, pz);
+  box(2.4, 0.45, 3.0, mat.aluDark, PICK_X, -5.7, pz - sg * 1.9);
+  box(2.0, 2.8, 0.9, mat.rubber, PICK_X, -3.1, pz - sg * 0.85);
+}
+const beamLen = postP - postN + 0.8, beamMid = (postP + postN) / 2;
+box(2.4, 0.8, beamLen, mat.alu, PICK_X, 7.6, beamMid);
+box(0.08, 0.16, beamLen - 1.2, mat.belt, PICK_X - 1.25, 7.35, beamMid, null, true);
+box(0.08, 0.16, beamLen - 1.2, mat.belt, PICK_X - 1.25, 7.85, beamMid, null, true);
+cylX(0.35, PICK_X - 1.45, PICK_X - 1.05, mat.chrome, 7.6, postN + 0.9);
+cylX(0.35, PICK_X - 1.45, PICK_X - 1.05, mat.chrome, 7.6, postP - 0.9);
+box(2.6, 2.6, 2.6, mat.motor, PICK_X, 9.3, postP - 1.3);
+cylY(0.8, 0.5, mat.aluDark, PICK_X, 10.85, postP - 1.3);
+const zCar = new THREE.Group(); scene.add(zCar);
+box(3.6, 1.5, 2.4, mat.alu, PICK_X, 7.6, 0, zCar);
+box(0.3, 4.6, 0.6, mat.rail, PICK_X + 1.75, 5.0, 0, zCar);
+box(1.3, 1.1, 0.9, mat.motor, PICK_X + 1.1, 8.9, 0, zCar);
+box(0.25, 0.2, 1.1, mat.signal, PICK_X + 1.1, 9.55, 0, zCar);
+const pickAsm = new THREE.Group(); scene.add(pickAsm);
+box(0.6, 0.9, 1.0, mat.aluDark, PICK_X + 1.75, 3.3, 0, pickAsm);
+box(1.5, 0.35, 0.5, mat.alu, PICK_X + 1.0, 3.0, 0, pickAsm);
+const tiltGroup = new THREE.Group(); tiltGroup.position.set(PICK_X, 2.6, 0); pickAsm.add(tiltGroup);
+box(1.2, 0.6, 0.5, mat.aluDark, 0, 0.2, 0, tiltGroup);
+const pickShape = new THREE.Shape();
+pickShape.moveTo(0, 0);
+pickShape.quadraticCurveTo(-0.55, 0.6, -1.15, 1.9);
+pickShape.quadraticCurveTo(-1.35, 2.55, 0, 2.7);
+pickShape.quadraticCurveTo(1.35, 2.55, 1.15, 1.9);
+pickShape.quadraticCurveTo(0.55, 0.6, 0, 0);
+const pickGeo = new THREE.ExtrudeGeometry(pickShape, { depth: 0.08, bevelEnabled: false, curveSegments: 16 });
+pickGeo.translate(0, 0, -0.04);
+const pickMesh = new THREE.Mesh(pickGeo, mat.pick);
+pickMesh.position.set(0, -2.6, 0); pickMesh.castShadow = true;
+tiltGroup.add(pickMesh);
+
+// ---------- part labels ----------
+const liveS = { rx: [0, 0, 0, 0], barTop: 2, tipY: PICK_Y1, pz: PARK_Z, b: 0, rb: 0, fv: new Array(19).fill(0),
+  p: [0, 0, 0, 0, 0, 0], v: [0, 0, 0, 0, 0, 0], xs: [0, 0, 0, 0, 0, 0], zs: [0, 0, 0, 0, 0, 0], chord: null, lift: 1, gap: -1 };
+const _l = new THREE.Vector3();
+const LABELS = [
+  ['A', 'Barre bar', () => _l.set(liveS.rx[0], liveS.barTop + 0.2, -3.4)],
+  ['A', 'Finger grid, 6 × 3 solenoids', () => _l.set(liveS.rx[2] + 0.42, 6.55, ZFIX[3])],
+  ['A', 'Scissor linkage keeps rows on the frets', () => _l.set((liveS.rx[1] + liveS.rx[2]) / 2, 4.42, 4.62)],
+  ['A', 'Stepper and lead screw', () => _l.set(-5.7, 5.5, -5.1)],
+  ['A', 'Home switch', () => _l.set(-2.6, 4.8, 3.9)],
+  ['A', 'Fret sensor', () => _l.set(liveS.rx[1], 2.2, -2.75)],
+  ['B', 'One finger per string', () => _l.set(liveS.xs[2], 6.0, liveS.zs[2])],
+  ['B', 'Slotted guide plate', () => _l.set(26, 4.4, -3.2)],
+  ['B', 'Cable loop to each finger', () => _l.set(33, LANE_Y, zStr(5, 33))],
+  ['B', 'Motor bank, one stepper per string', () => _l.set(-6.5, 8.8, -5.4)],
+  ['*', 'Padded neck clamp', () => _l.set(41.8, 5.4, 3.9)],
+  ['*', 'Belt axis across the strings', () => _l.set(PICK_X - 1.25, 7.85, postN + 3)],
+  ['*', 'Lift servo', () => _l.set(PICK_X + 1.1, 9.45, liveS.pz)],
+  ['*', 'Pick', () => _l.set(PICK_X - 1.1, liveS.tipY + 1.6, liveS.pz)],
+  ['*', 'Padded body clamp', () => _l.set(PICK_X, 1.0, postP)],
+].map(([tag, text, fn]) => {
+  const el = document.createElement('div'); el.className = 'lbl';
+  const dot = document.createElement('i'); const sp = document.createElement('span'); sp.textContent = text;
+  el.append(dot, sp); labelsEl.appendChild(el);
+  return { tag, el, fn, shown: true, active: tag !== 'B' };
+});
+
+// ---------- sound: Karplus-Strong plucked string ----------
+let actx = null, master = null, soundOn = true;
+const voices = [null, null, null, null, null, null];
+const bufCache = new Map();
+function ensureAudio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      actx = new AC();
+      const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
+      const comp = actx.createDynamicsCompressor();
+      master = actx.createGain(); master.gain.value = 0.55;
+      master.connect(lp); lp.connect(comp); comp.connect(actx.destination);
+    } catch (e) { actx = null; return; }
+  }
+  if (actx.state === 'suspended') actx.resume();
+}
+function ksBuffer(freq) {
+  const key = Math.round(freq * 100);
+  if (bufCache.has(key)) return bufCache.get(key);
+  const sr = actx.sampleRate, len = Math.floor(sr * 2.4);
+  const buf = actx.createBuffer(1, len, sr), out = buf.getChannelData(0);
+  const N = Math.max(2, Math.round(sr / freq - 0.5));
+  const ring = new Float32Array(N);
+  for (let i = 0; i < N; i++) ring[i] = Math.random() * 2 - 1;
+  for (let i = 1; i < N; i++) ring[i] = 0.6 * ring[i] + 0.4 * ring[i - 1];
+  let idx = 0;
+  for (let i = 0; i < len; i++) {
+    const nx = idx + 1 === N ? 0 : idx + 1, v = ring[idx];
+    out[i] = v; ring[idx] = 0.9965 * 0.5 * (v + ring[nx]); idx = nx;
+  }
+  const fade = Math.floor(sr * 0.3);
+  for (let i = 0; i < fade; i++) out[len - 1 - i] *= i / fade;
+  bufCache.set(key, buf);
+  return buf;
+}
+function stopVoice(s) {
+  const v = voices[s]; voices[s] = null;
+  if (!v || !actx) return;
+  const now = actx.currentTime;
+  try { v.g.gain.setTargetAtTime(0, now, 0.015); v.src.stop(now + 0.15); } catch (e) { /* already stopped */ }
+}
+function playNote(s, fret) {
+  if (!soundOn || !actx || actx.state !== 'running') return;
+  const src = actx.createBufferSource();
+  src.buffer = ksBuffer(OPEN_HZ[s] * Math.pow(2, fret / 12));
+  const g = actx.createGain(); g.gain.value = 0.3;
+  src.connect(g); g.connect(master);
+  stopVoice(s);
+  src.start();
+  const v = { src, g }; voices[s] = v;
+  src.onended = () => { if (voices[s] === v) voices[s] = null; };
+}
+
+// ---------- animation state ----------
+let design = 'A';
+let tl = buildTimeline('A', SONG, REST.A, {});
+let playT = 0, playing = !reduceMotion, mode = 'song', speed = 1;
+let prevPickZ = PARK_Z, prevTipY = PICK_Y1, prevSensorX = pressX(1), sensorFlash = 0, tilt = 0, clock = 0;
+const amp = new Float32Array(6), effFret = new Int16Array(6).fill(-99);
+const cBx = new Float32Array(6), cBy = new Float32Array(6), cEff = new Int16Array(6);
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _p = new THREE.Vector3();
+
+function pluck(s) { amp[s] = 1; playNote(s, Math.max(0, effFret[s])); }
+function damp(s) { amp[s] *= 0.12; stopVoice(s); }
+
+function poseA(st, rdt) {
+  const b = st.b, fv = st.f, rb = Math.round(b);
+  const rx = [pressX(b), pressX(b + 1), pressX(b + 2), pressX(b + 3)];
+  for (let k = 0; k < 4; k++) rows[k].position.x = rx[k];
+  for (const fg of fingers) {
+    const v = fv[fg.idx], yb = TIP_UP + (tipDown(fg.s) - TIP_UP) * v;
+    fg.tip.position.y = yb + TIP_H / 2;
+    fg.rod.position.y = yb + TIP_H + ROD_LEN / 2;
+    fg.m.emissiveIntensity = v > 0.02 ? 0.2 + 0.6 * v : 0;
+  }
+  const vB = fv[18], barBottom = BARRE_UP + (BARRE_DOWN - BARRE_UP) * vB;
+  barre.pad.position.y = barBottom + PAD_H / 2;
+  barre.bar.position.y = barBottom + PAD_H + BAR_H / 2;
+  for (const r of barre.rods) r.position.y = barBottom + PAD_H + BAR_H + BAR_ROD / 2;
+  for (const a of barre.acts) a.material.emissiveIntensity = vB > 0.02 ? 0.2 + 0.6 * vB : 0;
+  for (let i = 0; i < 3; i++) {
+    _a.set(rx[i], 3.8, 4.62); _b.set(rx[i + 1], 5.05, 4.62); between(scissor[i * 2], _a, _b, 0.16, 0.08);
+    _a.set(rx[i], 5.05, 4.62); _b.set(rx[i + 1], 3.8, 4.62); between(scissor[i * 2 + 1], _a, _b, 0.16, 0.08);
+  }
+  screw.rotation.x = b * 9;
+  const sx = rx[1];
+  if (Math.abs(sx - prevSensorX) > 1e-5) {
+    const lo = Math.min(sx, prevSensorX), hi = Math.max(sx, prevSensorX);
+    for (let n = 1; n <= 22; n++) { const fx = d(n); if (fx > lo && fx <= hi) sensorFlash = 1; }
+  }
+  prevSensorX = sx;
+  sensorFlash = Math.max(0, sensorFlash - rdt * 5);
+  lensMat.emissiveIntensity = sensorFlash * 1.3;
+  for (let s = 0; s < 6; s++) {
+    const r = STR_R[s];
+    let bx = -1, by = 0, eff = 0;
+    if (rx[0] > 0.2) {
+      const yc = barBottom - r;
+      if (yc < yStr(rx[0]) - 0.004) { bx = rx[0]; by = yc; }
+      if (vB > 0.85 && rb > 0) eff = rb;
+    }
+    for (let k = 1; k <= 3; k++) {
+      const v = fv[(k - 1) * 6 + s]; if (v <= 0.001) continue;
+      const x = rx[k] + STAG(s);
+      const yc = TIP_UP + (tipDown(s) - TIP_UP) * v - r;
+      if (yc < yStr(x) - 0.004 && x > bx) { bx = x; by = yc; }
+      if (v > 0.85) eff = Math.max(eff, rb + k);
+    }
+    cBx[s] = bx; cBy[s] = by; cEff[s] = eff;
+  }
+  liveS.rx = rx; liveS.barTop = barBottom + PAD_H + BAR_H; liveS.b = b; liveS.rb = rb; liveS.fv = fv;
+}
+
+function poseB(st) {
+  for (let s = 0; s < 6; s++) {
+    const ln = lanes[s], p = st.p[s], v = st.v[s], r = STR_R[s];
+    const x = pressX(p), z = zStr(s, x), yb = TIP_UP + (tipDown(s) - TIP_UP) * v;
+    ln.car.position.set(x, 4.65, z);
+    ln.act.position.set(x, 5.45, z);
+    ln.m.emissiveIntensity = v > 0.02 ? 0.2 + 0.6 * v : 0;
+    ln.tip.position.set(x, yb + TIP_H / 2, z);
+    ln.rod.position.set(x, yb + TIP_H + ROD_B / 2, z);
+    _a.set(x - 0.55, LANE_Y, z); _b.set(LANE_X0, LANE_Y, ln.hz); between(ln.cabF, _a, _b, 0.035, 0.035);
+    _a.set(x + 0.55, LANE_Y, z); _b.set(LANE_X1, LANE_Y, ln.tz); between(ln.cabR, _a, _b, 0.035, 0.035);
+    const yc = yb - r;
+    if (yc < yStr(x) - 0.004) { cBx[s] = x; cBy[s] = yc; } else cBx[s] = -1;
+    cEff[s] = v > 0.85 ? Math.round(p) : 0;
+    liveS.xs[s] = x; liveS.zs[s] = z;
+  }
+  liveS.p = st.p; liveS.v = st.v;
+}
+
+function applyState(t, rdt, live) {
+  const st = sampleState(tl, t);
+  if (tl.design === 'B') poseB(st); else poseA(st, rdt);
+
+  for (let s = 0; s < 6; s++) {
+    const r = STR_R[s], eff = cEff[s];
+    if (eff !== effFret[s]) { if (effFret[s] !== -99 && amp[s] > 0.02) damp(s); effFret[s] = eff; }
+    amp[s] *= Math.exp(-rdt / 1.4);
+    const vib = 1 + amp[s] * 2.2 * (0.55 + 0.45 * Math.sin(clock * 83 + s * 1.7));
+    strMats[s].emissiveIntensity = amp[s] * 0.85;
+    if (cBx[s] > 0) {
+      _p.set(cBx[s], Math.max(cBy[s], FRET_TOP + r), zStr(s, cBx[s]));
+      between(segA[s], nutP[s], _p, r, r);
+      between(segB[s], _p, brP[s], r * vib, r * vib);
+    } else {
+      _p.set(L * 0.5, yStr(L * 0.5), zStr(s, L * 0.5));
+      between(segA[s], nutP[s], _p, r * vib, r * vib);
+      between(segB[s], _p, brP[s], r * vib, r * vib);
+    }
+  }
+
+  const z = st.pz, lift = st.pl;
+  const tipY = PICK_Y0 + (PICK_Y1 - PICK_Y0) * lift;
+  zCar.position.z = z;
+  pickAsm.position.set(0, tipY, z);
+  const vz = live && rdt > 0 ? (z - prevPickZ) / (rdt * speed) : 0;
+  const target = Math.max(-0.32, Math.min(0.32, vz * 0.012));
+  tilt += (target - tilt) * Math.min(1, rdt * 30);
+  tiltGroup.rotation.x = tilt;
+  if (live && Math.min(prevTipY, tipY) < yStr(PICK_X) - 0.05) {
+    for (let s = 0; s < 6; s++) { const zs = PICK_STR_Z[s]; if ((prevPickZ - zs) * (z - zs) < 0) pluck(s); }
+  }
+  prevPickZ = z; prevTipY = tipY;
+  liveS.tipY = tipY; liveS.pz = z; liveS.chord = st.chord; liveS.lift = lift; liveS.gap = st.gap;
+}
+
+// ---------- chord readout ----------
+const hudDesign = document.getElementById('hudDesign'), hudName = document.getElementById('hudName'), hudTab = document.getElementById('hudTab');
+const hudPos = document.getElementById('hudPos'), hudPick = document.getElementById('hudPick'), hudGap = document.getElementById('hudGap');
+const fbEl = document.getElementById('fb');
+const fbMark = [], fbLab = [], fbRows = [[], [], [], []];
+for (let r = 0; r < 5; r++) {
+  const lab = document.createElement('div'); lab.className = 'fl'; fbEl.appendChild(lab);
+  if (r > 0) fbLab.push(lab);
+  for (let s = 0; s < 6; s++) {
+    const c = document.createElement('div');
+    if (r === 0) { c.className = 'fm'; fbMark.push(c); }
+    else { c.className = 'fc' + (r === 1 ? ' br first' : ''); fbRows[r - 1].push(c); }
+    fbEl.appendChild(c);
+  }
+}
+function setText(el, s) { if (el._t !== s) { el.textContent = s; el._t = s; } }
+function setOn(el, on) { if (el._on !== on) { el.classList.toggle('on', on); el._on = on; } }
+function updateHud() {
+  const c = liveS.chord ? CHORDS[liveS.chord] : null;
+  setText(hudDesign, tl.design === 'B' ? 'Sliding fingers' : 'Finger grid');
+  setText(hudName, c ? c.name : 'Resting');
+  setText(hudTab, c ? tabStr(c.frets) + (c.barre ? ', barre at fret ' + c.barre : '') : 'Hands clear of the strings');
+  for (let s = 0; s < 6; s++) {
+    const f = c ? c.frets[s] : null;
+    setText(fbMark[s], c ? (f < 0 ? 'x' : (f === 0 ? 'o' : '')) : '');
+  }
+  if (tl.design === 'B') {
+    let wb = 0;
+    if (c) { const fr = c.frets.filter(f => f > 0); if (fr.length) wb = Math.max(0, Math.min.apply(null, fr) - 1); }
+    setText(fbLab[0], wb > 0 ? String(wb) : 'nut');
+    for (let k = 1; k <= 3; k++) setText(fbLab[k], String(wb + k));
+    for (let s = 0; s < 6; s++) {
+      setOn(fbRows[0][s], false);
+      for (let k = 1; k <= 3; k++) setOn(fbRows[k][s], liveS.v[s] > 0.5 && Math.round(liveS.p[s]) - wb === k);
+    }
+    setText(hudPos, 'Fingers at frets ' + liveS.p.map(v => Math.round(v)).join(' '));
+  } else {
+    const rb = liveS.rb;
+    setText(fbLab[0], rb > 0 ? String(rb) : 'nut');
+    for (let k = 1; k <= 3; k++) setText(fbLab[k], String(rb + k));
+    for (let s = 0; s < 6; s++) {
+      setOn(fbRows[0][s], liveS.fv[18] > 0.5);
+      for (let k = 1; k <= 3; k++) setOn(fbRows[k][s], liveS.fv[(k - 1) * 6 + s] > 0.5);
+    }
+    setText(hudPos, liveS.b < 0.02 ? 'Carriage home at the nut' : 'Carriage at fret ' + liveS.b.toFixed(1));
+  }
+  setText(hudGap, liveS.gap >= 0 ? 'Chord gap ' + liveS.gap.toFixed(2) + ' s' : 'Chord gap not measured yet');
+  setText(hudPick, liveS.lift < 0.15 ? 'Pick down in the strings' : (liveS.lift > 0.85 ? 'Pick lifted' : 'Pick lifting or lowering'));
+}
+
+// ---------- robot script list ----------
+const scriptEl = document.getElementById('script');
+let scriptRows = [], curLine = -1;
+function renderScript() {
+  scriptEl.textContent = '';
+  scriptRows = tl.lines.map(l => { const div = document.createElement('div'); div.textContent = l.text; scriptEl.appendChild(div); return div; });
+  curLine = -1; scriptEl.scrollTop = 0;
+}
+function updateScript() {
+  let i = -1;
+  for (let j = 0; j < tl.lines.length; j++) { if (tl.lines[j].t <= playT + 1e-3) i = j; else break; }
+  if (i === curLine) return;
+  if (curLine >= 0 && scriptRows[curLine]) scriptRows[curLine].classList.remove('now');
+  if (i >= 0 && scriptRows[i]) {
+    const el = scriptRows[i]; el.classList.add('now');
+    scriptEl.scrollTop = el.offsetTop - scriptEl.clientHeight / 2 + el.offsetHeight / 2;
+  }
+  curLine = i;
+}
+function setTimeline(next) { tl = next; renderScript(); }
+
+// ---------- camera ----------
+const VIEWS = {
+  overview: { t: [31, 0, 0], r: 108, th: 0.55, ph: 0.98 },
+  chord:    { t: [7, 2.4, 0], r: 32, th: 0.8, ph: 0.92 },
+  pick:     { t: [56, 3, 0], r: 28, th: -0.7, ph: 1.0 },
+  side:     { t: [31, 1, 0], r: 100, th: 0.0, ph: 1.47 },
+  top:      { t: [31, 0, 0], r: 112, th: 0.0, ph: 0.03 },
+};
+const camS = { tx: 31, ty: 0, tz: 0, r: 108, th: 0.55, ph: 0.98 };
+let camAnim = null, vw = 1, vh = 1;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function applyCam() {
+  const sp = Math.sin(camS.ph);
+  camera.position.set(camS.tx + camS.r * sp * Math.sin(camS.th), camS.ty + camS.r * Math.cos(camS.ph), camS.tz + camS.r * sp * Math.cos(camS.th));
+  camera.lookAt(camS.tx, camS.ty, camS.tz);
+}
+function fitFactor() { const a = vw / vh; return a < 1.5 ? Math.min(2.4, Math.pow(1.5 / a, 0.9)) : 1; }
+function goView(name, instant) {
+  const p = VIEWS[name]; if (!p) return;
+  const to = { tx: p.t[0], ty: p.t[1], tz: p.t[2], r: p.r * fitFactor(), th: p.th, ph: p.ph };
+  while (to.th - camS.th > Math.PI) to.th -= 2 * Math.PI;
+  while (to.th - camS.th < -Math.PI) to.th += 2 * Math.PI;
+  if (instant || reduceMotion) { Object.assign(camS, to); camAnim = null; applyCam(); return; }
+  camAnim = { from: Object.assign({}, camS), to, u: 0 };
+}
+function stepCam(rdt) {
+  if (!camAnim) return;
+  camAnim.u = Math.min(1, camAnim.u + rdt / 0.9);
+  const u = camAnim.u, e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  for (const k in camAnim.to) camS[k] = camAnim.from[k] + (camAnim.to[k] - camAnim.from[k]) * e;
+  applyCam();
+  if (camAnim.u >= 1) camAnim = null;
+}
+const _r = new THREE.Vector3(), _u = new THREE.Vector3(), _f = new THREE.Vector3();
+function pan(dx, dy) {
+  camera.matrixWorld.extractBasis(_r, _u, _f);
+  const k = camS.r * 0.0016;
+  camS.tx += (-_r.x * dx + _u.x * dy) * k;
+  camS.ty += (-_r.y * dx + _u.y * dy) * k;
+  camS.tz += (-_r.z * dx + _u.z * dy) * k;
+}
+function clearViewChips() { document.querySelectorAll('#views .chip').forEach(b => b.setAttribute('aria-pressed', 'false')); }
+
+const ptrs = new Map(); let lastPinch = null;
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, btn: e.button, shift: e.shiftKey });
+  camAnim = null; canvas.style.cursor = 'grabbing';
+  if (ptrs.size === 1) clearViewChips();
+});
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 1) {
+    if (p.btn === 2 || p.btn === 1 || p.shift) pan(dx, dy);
+    else { camS.th -= dx * 0.0065; camS.ph = clamp(camS.ph - dy * 0.0065, 0.03, 1.56); }
+  } else if (ptrs.size === 2) {
+    const [a, b] = Array.from(ptrs.values());
+    const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (lastPinch) { camS.r = clamp(camS.r * lastPinch.dist / dist, 8, 260); pan(mx - lastPinch.mx, my - lastPinch.my); }
+    lastPinch = { dist, mx, my };
+  }
+  applyCam();
+});
+function endPtr(e) { ptrs.delete(e.pointerId); if (ptrs.size < 2) lastPinch = null; if (!ptrs.size) canvas.style.cursor = 'grab'; }
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e => { e.preventDefault(); camAnim = null; camS.r = clamp(camS.r * Math.exp(e.deltaY * 0.0012), 8, 260); applyCam(); clearViewChips(); }, { passive: false });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ---------- theme ----------
+function cssVar(n, fb) { const v = getComputedStyle(document.documentElement).getPropertyValue(n).trim(); return v || fb; }
+function applyTheme() {
+  const bg = cssVar('--scene-bg', '#d9e2dd');
+  scene.background = new THREE.Color(bg);
+  scene.fog = new THREE.Fog(bg, 170, 380);
+  matMat.color.set(cssVar('--ground', '#3b6f60'));
+  gridFine.material.color.set(cssVar('--grid-b', '#5d8d7d'));
+  gridCoarse.material.color.set(cssVar('--grid-a', '#8cb3a3'));
+}
+applyTheme();
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', applyTheme); else if (mq.addListener) mq.addListener(applyTheme);
+}
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+
+// ---------- resize ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (!w || !h) return;
+  vw = w; vh = h;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+resize();
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
+goView('overview', true);
+
+// ---------- labels ----------
+let labelsOn = false;
+function updateLabels() {
+  if (!labelsOn) return;
+  for (const lb of LABELS) {
+    let vis = false, x = 0, y = 0;
+    if (lb.active) {
+      const v = lb.fn().project(camera);
+      x = (v.x + 1) / 2 * vw; y = (1 - v.y) / 2 * vh;
+      vis = v.z < 1 && v.z > -1 && x > -20 && x < vw + 20 && y > -20 && y < vh + 20;
+    }
+    if (vis !== lb.shown) { lb.el.style.display = vis ? '' : 'none'; lb.shown = vis; }
+    if (vis) lb.el.style.transform = 'translate(' + (x - 4).toFixed(1) + 'px,' + (y - 4).toFixed(1) + 'px)';
+  }
+}
+const lblBox = document.getElementById('lbl');
+function setLabels(on) { labelsOn = on; lblBox.checked = on; labelsEl.hidden = !on; }
+setLabels(vw >= 760);
+lblBox.addEventListener('change', () => setLabels(lblBox.checked));
+
+// ---------- controls ----------
+const playBtn = document.getElementById('play');
+function syncPlayBtn() {
+  if (playing && mode === 'song') playBtn.textContent = 'Pause';
+  else if (mode === 'song' && playT > 0 && playT < tl.end) playBtn.textContent = 'Resume';
+  else playBtn.textContent = 'Play demo song';
+}
+function markChord(key) { document.querySelectorAll('#chords .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.chord === key))); }
+function startSong(init) {
+  mode = 'song'; setTimeline(buildTimeline(design, SONG, init || sampleState(tl, playT), {}));
+  playT = 0; playing = true; markChord(null); syncPlayBtn();
+}
+function setDesign(dsg) {
+  if (dsg === design) return;
+  const st = sampleState(tl, playT);
+  design = dsg;
+  gA.visible = dsg === 'A'; gB.visible = dsg === 'B';
+  document.querySelectorAll('#design button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === dsg)));
+  document.querySelectorAll('[data-notes]').forEach(n => { n.hidden = n.dataset.notes !== dsg; });
+  for (const lb of LABELS) lb.active = lb.tag === '*' || lb.tag === dsg;
+  startSong(Object.assign({}, REST[dsg], { pz: st.pz, pl: st.pl }));
+}
+document.querySelectorAll('#design button').forEach(btn => btn.addEventListener('click', () => { ensureAudio(); setDesign(btn.dataset.d); }));
+playBtn.addEventListener('click', () => {
+  ensureAudio();
+  if (mode !== 'song') startSong();
+  else { playing = !playing; syncPlayBtn(); }
+});
+document.getElementById('restart').addEventListener('click', () => { ensureAudio(); startSong(); });
+document.querySelectorAll('#speed button').forEach(btn => btn.addEventListener('click', () => {
+  speed = parseFloat(btn.dataset.s);
+  document.querySelectorAll('#speed button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+}));
+document.querySelectorAll('#views .chip').forEach(btn => btn.addEventListener('click', () => {
+  goView(btn.dataset.view);
+  document.querySelectorAll('#views .chip').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+}));
+const chordsEl = document.getElementById('chords');
+for (const key of CHORD_ORDER) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.chord = key; b.textContent = CHORDS[key].chip;
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    ensureAudio();
+    const st = sampleState(tl, playT);
+    mode = 'manual'; setTimeline(buildTimeline(design, oneChordSong(key), st, { keepHeld: true }));
+    playT = 0; playing = true; markChord(key); syncPlayBtn();
+  });
+  chordsEl.appendChild(b);
+}
+const sndBox = document.getElementById('snd');
+sndBox.addEventListener('change', () => {
+  soundOn = sndBox.checked;
+  if (soundOn) ensureAudio(); else for (let s = 0; s < 6; s++) stopVoice(s);
+});
+document.addEventListener('pointerdown', ensureAudio);
+document.addEventListener('keydown', ensureAudio);
+if (window.innerWidth < 780) document.getElementById('notes').open = false;
+
+renderScript();
+syncPlayBtn();
+
+// ---------- main loop ----------
+let lastNow = performance.now();
+function loop(now) {
+  const rdt = Math.min(0.05, Math.max(0, (now - lastNow) / 1000));
+  lastNow = now; clock += rdt;
+  if (playing) {
+    playT += rdt * speed;
+    if (playT >= tl.end) {
+      if (mode === 'song') { const st = sampleState(tl, tl.end); setTimeline(buildTimeline(design, SONG, st, {})); playT = 0; }
+      else { playT = tl.end; playing = false; syncPlayBtn(); }
+    }
+  }
+  applyState(playT, rdt, playing);
+  stepCam(rdt);
+  renderer.render(scene, camera);
+  updateLabels();
+  updateHud();
+  updateScript();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
