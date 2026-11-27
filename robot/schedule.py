@@ -8,6 +8,14 @@ Each action is a tuple that starts with its time in seconds:
 from robot import config
 from robot.arrange import positions_needed
 
+# When actions share a time: release first, then press, then strum.
+KIND_ORDER = {"release": 0, "press": 1, "strum": 2}
+
+
+def action_order(action):
+    '''Sort key: by time, then by KIND_ORDER, then by string and fret'''
+    return (action[0], KIND_ORDER[action[1]], action[2:])
+
 
 def beat_to_seconds(beat, tempo, lead_in):
     '''Converts each beat to a time in seconds'''
@@ -52,4 +60,4 @@ def schedule(song, press_time=config.PRESS_S, lead_in=config.LEAD_IN_S):
             changes, current = change_chord(current, (None, None, None, None, None, None), t)
             actions += changes
 
-    return sorted(actions)
+    return sorted(actions, key=action_order)

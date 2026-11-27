@@ -3,7 +3,7 @@
 PRESS_S = 0.08     # seconds from solenoid on to string pressed (sim guess, measure it)
 LEAD_IN_S = 1.0    # quiet time before the first beat so the first chord can settle
 
-DEFAULT_SONG = "./songs/demo.txt"
+DEFAULT_SONG = "songs/demo.txt"
 
 GRID_FRETS = (1, 2, 3, 4)   # the stationary grid covers frets 1-4
 
