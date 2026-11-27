@@ -1,0 +1,10 @@
+# Demo for the Dec 7 presentation: every chord here is an open chord.
+# Rules for this format are at the top of robot/parse.py.
+title: Open chord demo
+tempo: 90
+beats_per_bar: 4
+pattern: D . D U . U D U
+
+| G | C | D | Em |
+| Am | E | A | D |
+| G | D | C | G |
