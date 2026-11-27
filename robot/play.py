@@ -15,16 +15,49 @@ from robot.parse import parse_file
 from robot.schedule import schedule
 
 
+def do_action(hw, action):
+    event_type = action[1]
+
+    if event_type == "press":
+        _, _, string, fret = action
+        hw.press(string, fret)
+
+    elif event_type == "release":
+        _, _, string, fret = action
+        hw.release(string, fret)
+
+    elif event_type == "strum":
+        _, _, direction, low, high = action
+        hw.strum(direction, low, high)
+
+    else:
+        raise ValueError(f"Unknown action {event_type}")
+
+
 def run_timeline(actions, hw):
     """Do each action at its time, counting from when this function starts.
-    (t, "press", s, f) means hw.press(s, f) at time t. Same for release and strum.
-
-    Hints: start = time.perf_counter(), then before each action sleep until
-    start + t. Put the loop in try/finally and call hw.all_off() in the
-    finally, so Ctrl+C never leaves a solenoid on.
+    Ctrl+C stops it, and every solenoid is switched off however it ends.
     """
-    # TODO: your code here
-    raise NotImplementedError("run_timeline")
+    start_time = time.perf_counter()
+    try:
+        for action in actions:
+            # Action time is the start_time + desired_time
+            target_time = start_time + action[0]
+
+            # Sleep until we reach the target_time (or 0s if actions are on the same beat)
+            time.sleep(max(0, target_time - time.perf_counter()))
+
+            late = time.perf_counter() - target_time
+            if late > 0.01:
+                print(f"warning: {late * 1000:.0f} ms late")
+
+            do_action(hw, action)
+
+    except KeyboardInterrupt:
+        print("Stopped.")
+
+    finally:
+        hw.all_off()
 
 
 def main():
@@ -37,6 +70,7 @@ def main():
         available = {(s, f) for s in range(6) for f in config.GRID_FRETS}
     else:
         available = set(config.PIN_MAP)
+
     check_song(song, available)
     actions = schedule(song)
 
